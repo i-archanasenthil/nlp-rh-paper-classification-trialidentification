@@ -118,7 +118,7 @@ def extraxt_text_two_cols(pdf_path):
     return full_text
 
 if __name__ == "main":
-    pdf_path = "\data\paper1.pdf"
+    pdf_path = "data/paper1.pdf"
     text = extract_text_two_cols(pdf_path)
     print(text[:3000])
 
