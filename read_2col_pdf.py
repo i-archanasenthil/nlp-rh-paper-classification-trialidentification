@@ -1,6 +1,6 @@
 import fitz
 
-def is_full_width(block, page_width, threshols=0.8):
+def is_full_width(block, page_width, threshold=0.8):
     """
     Check if the block spans for the entire page width
     Like title, some abstracts, tables, graphs
@@ -17,10 +17,10 @@ def is_header_or_footer(block, page_height, margin = 50):
     Identifies if the block is a header or the footer area
     The margin decides how much of the top and bottom has to be ignored
     """
-    y0, y1 = block["bbbox"][1], block["bbox"][3]
+    y0, y1 = block["bbox"][1], block["bbox"][3]
     return y1 < margin or y0 > (page_height - margin)
 
-def extraxt_text_two_cols(pdf_path):
+def extract_text_two_cols(pdf_path):
     """
     Read content from the URL 
     This case reads content from the PDFs
@@ -34,7 +34,10 @@ def extraxt_text_two_cols(pdf_path):
     the line ignores images, drawings and tables 
     """
     for page_num, page in enumerate(doc):
-        blocks = [b for b in page.get_text("dict")["blocks"] if b["type"] == 0] and not is_header_or_footer(b, page.rect_height)
+        blocks = [
+            b for b in page.get_text("dict")["blocks"] 
+            if b["type"] == 0 and not is_header_or_footer(b, page.rect.height)
+            ]
         #Getting the width of the page
         page_width = page.rect.width
 
@@ -47,8 +50,10 @@ def extraxt_text_two_cols(pdf_path):
         for b in blocks:
             if is_full_width(b, page_width):
                 full_width_blocks.append(b)
+                print(full_width_blocks)
             else:
                 col_blocks.append(b)
+                print(col_blocks)
 
         """
         Sort all these blocks in a vertical blocks for easy readability
@@ -59,7 +64,7 @@ def extraxt_text_two_cols(pdf_path):
         full_width_blocks.sort(key= lambda b: b["bbox"][1])
         col_blocks.sort(key= lambda b: b["bbox"][1])
 
-        sentinel_block = {"bbox" : [0, page.rect.height + 1, page_width, page_rect.height + 2]}
+        sentinel_block = {"bbox" : [0, page.rect.height + 1, page_width, page.rect.height + 2]}
         full_width_blocks.append(sentinel_block)
 
         #Initializes pointer to keep track of which column block 
@@ -85,6 +90,9 @@ def extraxt_text_two_cols(pdf_path):
             next_fw = full_width_blocks[i+1]
 
             page_text += block_text(current_fw) + "\n\n"
+
+            lower_y = current_fw["bbox"][3]
+            upper_y = next_fw["bbox"][1]
             """
             Collect all the two column text between the two full_width_blocks and define the vertical slice
             Loop through the column block and collect those that fall within the vertical slice
@@ -117,8 +125,9 @@ def extraxt_text_two_cols(pdf_path):
         full_text += f"\n--- Page {page_num + 1} ---\n" + page_text
     return full_text
 
-if __name__ == "main":
-    pdf_path = "data/paper1.pdf"
-    text = extract_text_two_cols(pdf_path)
-    print(text[:3000])
+#if __name__ == "main":
+print("reading paper")
+pdf_path = "data/paper1.pdf"
+text = extract_text_two_cols(pdf_path)
+print(text[:3000])
 
