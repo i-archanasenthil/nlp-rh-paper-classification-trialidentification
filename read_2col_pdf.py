@@ -27,9 +27,12 @@ def is_table_like(block, digit_threshold=0.3, line_threshold=3):
     The block is likely a table
     """
     lines = block["lines"]
-    all_text = " ".join(span["text"] for line in lines for span in line["spans"])
+    
     if len(lines) < line_threshold:
         return False
+
+    text_content = [span["text"] for line in lines for span in line["spans"] if "text" in span]
+    all_text = " ".join(text_content)
     if not all_text:
         return False
     digit_ratio = sum(c.isdigit() for c in all_text) / len(all_text)
