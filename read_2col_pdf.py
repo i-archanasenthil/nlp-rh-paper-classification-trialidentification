@@ -20,6 +20,32 @@ def is_header_or_footer(block, page_height, margin = 50):
     y0, y1 = block["bbox"][1], block["bbox"][3]
     return y1 < margin or y0 > (page_height - margin)
 
+def is_table_like(block, digit_threshold=0.3, line_threshold=3):
+    """
+    Check if the content has high digit ratio or many numbers
+    see if the content has many short lines that are aligned
+    The block is likely a table
+    """
+    lines = block["lines"]
+    all_text = " ".join(span["text"] for line in lines for span in line["spans"])
+    if len(lines) < line_threshold:
+        return False
+    if not all_text:
+        return False
+    digit_ratio = sum(c.isdigit() for c in all_text) / len(all_text)
+    return digit_ratio > digit_threshold
+
+def block_text(block):
+    """
+    Convert a block of text with lines and spans into plain text
+    """
+    lines = block.get("lines",[])
+    texts = []
+    for line in lines:
+        line_text = " ".join(span['text'] for span in line.get("spans", []))
+        texts.append(line_text)
+    return "\n".join(texts)
+
 def extract_text_two_cols(pdf_path):
     """
     Read content from the URL 
@@ -36,7 +62,9 @@ def extract_text_two_cols(pdf_path):
     for page_num, page in enumerate(doc):
         blocks = [
             b for b in page.get_text("dict")["blocks"] 
-            if b["type"] == 0 and not is_header_or_footer(b, page.rect.height)
+            if b["type"] == 0 
+            and not is_header_or_footer(b, page.rect.height)
+            and not is_table_like(b)
             ]
         #Getting the width of the page
         page_width = page.rect.width
@@ -44,90 +72,40 @@ def extract_text_two_cols(pdf_path):
         """
         separating the contents with full-width and two column blocks
         """
-        full_width_blocks = []
         col_blocks = []
 
         for b in blocks:
-            if is_full_width(b, page_width):
-                full_width_blocks.append(b)
-                print(full_width_blocks)
+            if is_header_or_footer(b, page.rect.height):
+                continue
+            if is_table_like(b):
+                continue
+            col_blocks.append(b)
+        
+        left_col = []
+        right_col = []
+
+        for b in col_blocks:
+            x0, y0, x1, y1 = b["bbox"]
+            center_x = (x0 + x1) / 2
+            if center_x < page.rect.width / 2:
+                left_col.append(b)
             else:
-                col_blocks.append(b)
-                print(col_blocks)
-
-        """
-        Sort all these blocks in a vertical blocks for easy readability
-        Need to have content in full_width and two-column 
-        blocks between based on vertical position
-        Adding a dummy block to add at the end of the page
-        """
-        full_width_blocks.sort(key= lambda b: b["bbox"][1])
-        col_blocks.sort(key= lambda b: b["bbox"][1])
-
-        sentinel_block = {"bbox" : [0, page.rect.height + 1, page_width, page.rect.height + 2]}
-        full_width_blocks.append(sentinel_block)
-
-        #Initializes pointer to keep track of which column block 
-        col_idx = 0
-
-        def block_text(block):
-            """
-            block is made of lines. function goes through each line in a block
-            spans are portion of text with the same style. Combines all spans in the line into a single line of text
-            Joins all these lines together with \n to preserve paragraph structure            
-            """
-            lines = block["lines"]
-            texts = []
-            for line in lines:
-                line_text = " ".join(span["text"] for span in line["spans"])
-                texts.append(line_text)
-            return "\n".join(texts)
+                right_col.append(b)
+        
+        left_col.sort(key = lambda b: b["bbox"][1])
+        right_col.sort(key = lambda b: b["bbox"][1])
 
         page_text = ""
-        
-        for i in range(len(full_width_blocks)-1):
-            current_fw = full_width_blocks[i]
-            next_fw = full_width_blocks[i+1]
+        for b in left_col + right_col:
+            page_text += block_text(b) + "\n\n"
+    
+        full_text += f"\n--- Page {page_num + 1} ---\n" +page_text        
 
-            page_text += block_text(current_fw) + "\n\n"
-
-            lower_y = current_fw["bbox"][3]
-            upper_y = next_fw["bbox"][1]
-            """
-            Collect all the two column text between the two full_width_blocks and define the vertical slice
-            Loop through the column block and collect those that fall within the vertical slice
-            """
-            slice_blocks = []
-            while col_idx < len(col_blocks) and col_blocks[col_idx]["bbox"][1] >= lower_y and col_blocks[col_idx]["bbox"][1] < upper_y:
-                slice_blocks.append(col_blocks[col_idx])
-                col_idx += 1
-
-            """
-            The content between is split into two blocks left column and the right column
-            Sorting the blocks vertically to appear in the top to bottom order,
-            """
-            left_col = []
-            right_col = []
-            for b in slice_blocks:
-                x0, y0, x1, y1 = b["bbox"]
-                center_x = (x0 + x1) / 2
-                if center_x < page_width / 2:
-                    left_col.append(b)
-                else:
-                    right_col.append(b)
-
-            left_col.sort(key = lambda b:b["bbox"][1])
-            right_col.sort(key = lambda b: b["bbox"][1])
-
-            for b in left_col + right_col:
-                page_text += block_text(b) + "\n\n"
-
-        full_text += f"\n--- Page {page_num + 1} ---\n" + page_text
     return full_text
 
 #if __name__ == "main":
 print("reading paper")
 pdf_path = "data/paper1.pdf"
 text = extract_text_two_cols(pdf_path)
-print(text[:3000])
+print(text)
 
