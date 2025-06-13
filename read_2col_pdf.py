@@ -1,4 +1,5 @@
 import fitz
+import re
 
 def is_full_width(block, page_width, threshold=0.8):
     """
@@ -106,9 +107,38 @@ def extract_text_two_cols(pdf_path):
 
     return full_text
 
+def extract_trial_ids(text: str):
+    """
+    match the most common patterns of the clinical trial identfiers 
+    """
+    patterns = [
+        r'\bNCT\d{6,8}\b',
+        r'\bEUCTR\d{4}-\d{6}-\d{2}(?:-[A-Z]{2,3})?\b',
+        r'\bISRCTN\d{6,8}\b',
+        r'\bUMIN\d{6,8}\b',
+        r'\bChiCTR(?:-[A-Z]{2,3})?-\d{6,8}\b',
+        r'\bACTRN\d{14}\b',
+        r'\bJPRN-[A-Z]+\d{6,8}\b',
+        r'\bJapicCTI-\d{6}\b',
+        r'\bCTRI/\d{4}/\d{2}/\d{6}\b',
+        r'\bIRCT\d{8,15}(?:[A-Z]\d+)?\b',
+        r'\bDRKS\d{6,8}\b',
+        r'\bNTR\d{4,8}\b',
+        r'\bPER-\d{3,4}-\d{2}\b',
+        r'\bKCT\d{6,8}\b',
+        r'\bEudraCT\s?\d{4}-\d{6}-\d{2}\b'
+    ]
+
+    trial_ids = []
+
+    for pattern in patterns: 
+        trial_ids += re.findall(pattern, text)
+
+    return list(set(trial_ids))
+
 #if __name__ == "main":
 print("reading paper")
 pdf_path = "data/paper1.pdf"
 text = extract_text_two_cols(pdf_path)
-print(text)
-
+trial_ids = extract_trial_ids(text)
+print("Extracted Clinical Trial IDs:", trial_ids)
