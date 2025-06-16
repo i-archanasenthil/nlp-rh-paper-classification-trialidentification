@@ -13,7 +13,7 @@ def is_full_width(block, page_width, threshold=0.8):
     width = x1 -x0
     return width >= page_width*threshold
 
-def is_header_or_footer(block, page_height, margin = 50):
+def is_header_or_footer(block, page_height, margin = 25):
     """
     Identifies if the block is a header or the footer area
     The margin decides how much of the top and bottom has to be ignored
@@ -138,7 +138,8 @@ def extract_trial_ids(text: str):
 
 #if __name__ == "main":
 print("reading paper")
-pdf_path = "data/paper1.pdf"
+pdf_path = "data/paper2.pdf"
 text = extract_text_two_cols(pdf_path)
+print(text)
 trial_ids = extract_trial_ids(text)
 print("Extracted Clinical Trial IDs:", trial_ids)
