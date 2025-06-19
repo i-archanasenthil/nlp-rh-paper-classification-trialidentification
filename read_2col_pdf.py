@@ -1,6 +1,8 @@
 import fitz
 import re
 import os
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
 
 def is_full_width(block, page_width, threshold=0.8):
     """
@@ -185,12 +187,33 @@ def extract_from_pdf_or_text(input_source: str):
         text = input_source
 
     trial_ids = extract_trial_ids(text)
-    return trial_ids
+    results = classify_paper_with_sentence_transformer(text)
+    return trial_ids, results
+
+def classify_paper_with_sentence_transformer(paper_text, model_name = "all-MiniLM-L6-v2"):
+    """
+    Classify the research paper text by semantic similarity to a set of labels using SentenceTransformers model
+    The text will be the text of the research papers or the abstracts
+    Returns a ranked list of label and similarity score sorted descending
+    """
+    model = SentenceTransformer(model_name)
+    candidate_labels = ['Clinical Trial', 'Treatment/Medication', 'Research','Machine Learning']
+    paper_embeddings = model.encode(paper_text, convert_to_tensor = True)
+    label_embeddings = model.encode(candidate_labels, convert_to_tensor = True)
+
+    cosine_scores = util.cos_sim(paper_embeddings, label_embeddings)[0]
+    sorted_indices = np.argsort(-cosine_scores)
+
+    ranked_labels = [(candidate_labels[idx], float(cosine_scores[idx])) for idx in sorted_indices]
+    return ranked_labels
 
 if __name__ == "__main__":
     pdf_path = "data/paper2.pdf"
-    trial_ids_pdf = extract_from_pdf_or_text(pdf_path)
+    trial_ids_pdf, results = extract_from_pdf_or_text(pdf_path)
     print("Extracted from PDF:", trial_ids_pdf)
+    print("Top label matches:")
+    for label, score in results:
+        print(f"{label}:{score:.4f}")
 
     sample_text = """
     Background: The objective of this study was to evaluate the efficacy and safety of SC golimumab (GLM) in RA pts who previously received IV GLM q12 wks with and without MTX. 
@@ -209,5 +232,8 @@ if __name__ == "__main__":
     Both IV and SC GLM were well tolerated with acceptable safety profiles. NCT00361335
     """
 
-    trial_ids_text = extract_from_pdf_or_text(sample_text)
+    trial_ids_text, results = extract_from_pdf_or_text(sample_text)
     print("Extracted from text:", trial_ids_text)
+    print("Top label matches:")
+    for label, score in results:
+        print(f"{label}:{score:.4f}")
