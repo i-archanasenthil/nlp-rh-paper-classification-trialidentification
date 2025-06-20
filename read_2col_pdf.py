@@ -208,7 +208,7 @@ def classify_paper_with_sentence_transformer(paper_text, model_name = "all-MiniL
     return ranked_labels
 
 if __name__ == "__main__":
-    pdf_path = "data/paper2.pdf"
+    pdf_path = "data/paper3.pdf"
     trial_ids_pdf, results = extract_from_pdf_or_text(pdf_path)
     print("Extracted from PDF:", trial_ids_pdf)
     print("Top label matches:")
