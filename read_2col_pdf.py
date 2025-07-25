@@ -3,6 +3,7 @@ import re
 import os
 from sentence_transformers import SentenceTransformer, util
 import numpy as np
+from keybert import KeyBERT
 
 def is_full_width(block, page_width, threshold=0.8):
     """
@@ -188,7 +189,8 @@ def extract_from_pdf_or_text(input_source: str):
 
     trial_ids = extract_trial_ids(text)
     results = classify_paper_with_sentence_transformer(text)
-    return trial_ids, results
+    kw_results = extract_keywords_from_text(text, 5)
+    return trial_ids, results, kw_results
 
 def classify_paper_with_sentence_transformer(paper_text, model_name = "all-MiniLM-L6-v2"):
     """
@@ -207,13 +209,25 @@ def classify_paper_with_sentence_transformer(paper_text, model_name = "all-MiniL
     ranked_labels = [(candidate_labels[idx], float(cosine_scores[idx])) for idx in sorted_indices]
     return ranked_labels
 
+def extract_keywords_from_text(text, top_n = 5, model_name="all-MiniLM-L6-v2"):
+    """
+    Extract top keywords from a given text
+    Returns a list of tuples keywords, scores ranked by relevance
+    """
+    kw_model = KeyBERT(model= model_name)
+    keywords = kw_model.extract_keywords(text, top_n = top_n, stop_words= 'english')
+    return keywords
+
 if __name__ == "__main__":
     pdf_path = "data/paper3.pdf"
-    trial_ids_pdf, results = extract_from_pdf_or_text(pdf_path)
+    trial_ids_pdf, results, kw_results = extract_from_pdf_or_text(pdf_path)
     print("Extracted from PDF:", trial_ids_pdf)
     print("Top label matches:")
     for label, score in results:
         print(f"{label}:{score:.4f}")
+    print("Top 5 Keywords:")
+    for kw, score in kw_results:
+        print(f"{kw}: {score:.4f}")
 
     sample_text = """
     Background: The objective of this study was to evaluate the efficacy and safety of SC golimumab (GLM) in RA pts who previously received IV GLM q12 wks with and without MTX. 
@@ -232,8 +246,11 @@ if __name__ == "__main__":
     Both IV and SC GLM were well tolerated with acceptable safety profiles. NCT00361335
     """
 
-    trial_ids_text, results = extract_from_pdf_or_text(sample_text)
+    trial_ids_text, results, kw_results = extract_from_pdf_or_text(sample_text)
     print("Extracted from text:", trial_ids_text)
     print("Top label matches:")
     for label, score in results:
         print(f"{label}:{score:.4f}")
+    print("Top 5 Keywords:")
+    for kw, score in kw_results:
+        print(f"{kw}: {score:.4f}")
