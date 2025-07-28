@@ -3,3 +3,4 @@ numpy
 PyMuPDF
 sentence-transformers
 keybert
+spacy
